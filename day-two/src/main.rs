@@ -86,5 +86,11 @@ fn main() -> std::io::Result<()> {
                                 .reduce( |a, b| a + b);
                                 
     println!("{:?}", game_id_total);
+
+    let power_sum = games.iter().map( |game| game.max_red() * game.max_green() * game.max_blue())
+            .reduce( |a, b| a + b);
+
+    println!("Power sum: {:?}", power_sum);
+    
     Ok(())
 }
