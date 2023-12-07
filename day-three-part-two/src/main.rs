@@ -58,6 +58,7 @@ fn main() -> std::io::Result<()> {
         }
     }
 
+    /*
     let part_number_sum = schematics.iter()
         .map( | row |
             row.iter()
@@ -67,9 +68,7 @@ fn main() -> std::io::Result<()> {
                 .group_by(|entry| entry.gear_id.to_string())
                 .into_iter()
                 .map(|(_,group)| group.collect::<Vec<_>>())
-               // .inspect(|group| println!(" {:?} ", group))
                 .filter(|group| group.len()  == 2)
-              //  .inspect(|group| println!(" {:?} ", group))
                 .map(|group| group
                     .into_iter()
                     .inspect(|entry| println!(" {:?} ", entry))
@@ -83,7 +82,26 @@ fn main() -> std::io::Result<()> {
                 )
         .reduce(|a,b| a+ b)
         .unwrap();
+*/
+   let part_number_sum = schematics.iter()
+       .flat_map(|row| row.iter())
+       .map(|rc| rc.borrow())
+       .filter(|entry| entry.is_part )
+       .unique_by(|entry| entry.id)
+       .group_by(|entry| entry.gear_id.to_string())
+       .into_iter()
+       .map(|(_,group)| group.collect::<Vec<_>>())
+       .filter(|group| group.len() == 2)
+       .map(|group| 
+            group.into_iter()
+                .map(|entry| entry.value.parse::<i64>().unwrap())
+                .reduce(|a,b| a*b)
+                .unwrap()
+        )
+       .reduce(|a,b| a+b)
+       .unwrap();
     println!("\n\nSum of all part numbers is: {:?}", part_number_sum);
+
     
     Ok(())
 }
