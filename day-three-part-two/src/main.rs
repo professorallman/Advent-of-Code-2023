@@ -83,14 +83,17 @@ fn main() -> std::io::Result<()> {
         .reduce(|a,b| a+ b)
         .unwrap();
 */
+    let mut gear_parts:HashMap<String,Vec<Entry>> = HashMap::new();
    let part_number_sum = schematics.iter()
        .flat_map(|row| row.iter())
        .map(|rc| rc.borrow())
        .filter(|entry| entry.is_part )
        .unique_by(|entry| entry.id)
+      // .inspect(|entry| println!("{:?}", entry) )
        .group_by(|entry| entry.gear_id.to_string())
        .into_iter()
        .map(|(_,group)| group.collect::<Vec<_>>())
+       .inspect(|entry| println!("{:?}", entry) )
        .filter(|group| group.len() == 2)
        .map(|group| 
             group.into_iter()
