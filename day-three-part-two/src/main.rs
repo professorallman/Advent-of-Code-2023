@@ -1,180 +1,75 @@
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, BufRead};
-use std::{cell::RefCell, rc::Rc};
-use regex::Regex;
-use itertools::Itertools;
+use std::usize;
 
-#[derive(Debug)]
-struct Entry{
-    id:usize,
-    gear_id:String,
-    value:String,
-    is_part:bool
-}
-impl Entry {
-    pub fn set_gear_id(&mut self, gear_id:String){
-        self.gear_id = gear_id;
-        self.is_part = true;
-    }
-}
 fn main() -> std::io::Result<()> {
     let file = File::open("input.txt")?;
     let reader = BufReader::new(file);
-    let regex = Regex::new(r#"\W|\d*"#).unwrap();
-    
-    let schematics = reader
-        .lines()
-        .map( |line| regex.captures_iter(&line.unwrap()).map( |cap | String::from(cap.get(0).unwrap().as_str())).collect::<Vec<_>>())
-        .map( |entries|{
-            let mut row:Vec<Rc<RefCell<Entry>>> = Vec::new();
-            entries.iter().enumerate().for_each( |(id,entry)|{
-                let e = Rc::new(RefCell::new(Entry{id, value:entry.to_string(), is_part:false,gear_id:"None".to_string()}));
-                for _ in 0..entry.len(){
-                    row.push(e.clone());
-                }
-            });
-            row
-        })
-        .collect::<Vec<_>>();
-    
-    let data:Vec<Vec<String>> = schematics
-        .iter()
-        .map(|row| row.iter().map(|rc| rc.borrow().value.to_string()).collect::<Vec<String>>())
-        .collect::<Vec<Vec<String>>>();
-
-    for (i, row) in data.iter().enumerate(){
-        for (j,entry) in row.iter().enumerate(){
-            if let Some(char) = entry.chars().next(){
-                if char.eq(&'.'){
-                 continue;
-                }
-                if !char.is_numeric() {
-                 continue;
-                }
-            }
-            if let Some(gear_id) = neighbor_checker(&data, i, j) {
-                schematics.get(i).unwrap().get(j).unwrap().clone().borrow_mut().set_gear_id(gear_id);
-            }
+    let null = &'.';
+    let mut line_length:i64 = 0;
+    let mut gear_parts:HashMap<usize, Vec<i64>> = HashMap::new();
+    let entries:Vec<char> = reader.lines()
+        .map(|line| line.unwrap())
+        .inspect(|line| line_length = line.len().try_into().unwrap())
+        .flat_map(|line| line.chars().collect::<Vec<char>>())
+        .collect();
+    let mut i:i64 = 0;
+    while i <= entries.len().try_into().unwrap_or(0){ 
+        if !entries.get(usize::try_from(i).unwrap()).unwrap_or(null).is_numeric(){
+            i = i + 1;
+            continue;
         }
+        let mut j:i64 = 0;
+        let mut gear_indices:HashSet<usize> = HashSet::new();
+        if let Some(gear_index) = check_neighbors(&entries, i, line_length){
+            gear_indices.insert(gear_index);
+        }
+        while entries.get(usize::try_from(i+j).unwrap()).unwrap_or(null).is_numeric()
+           &&  ((i+j) as f64 / line_length as f64).fract() != 0.0{
+            if let Some(gear_index) = check_neighbors(&entries, i+j, line_length){
+                gear_indices.insert(gear_index);
+            }
+            println!("{}", (i+j)%line_length != 0);
+            j = j + 1;
+        }
+        let parsed_num = &entries[i as usize..(i+j) as usize].iter().collect::<String>();//.parse::<i64>().unwrap();
+        println!("{}", parsed_num);
+//        println!("\n{}", parsed_num);
+       // for gear_index in gear_indices.iter(){
+       //     gear_parts.entry(*gear_index).or_insert_with(Vec::new).push(*parsed_num);
+        //}
+        i = i + 1 + j;
     }
-
-    /*
-    let part_number_sum = schematics.iter()
-        .map( | row |
-            row.iter()
-                .map( |rc| rc.borrow() )
-                .filter( | entry | entry.is_part )
-                .unique_by( |entry| entry.id)
-                .group_by(|entry| entry.gear_id.to_string())
-                .into_iter()
-                .map(|(_,group)| group.collect::<Vec<_>>())
-                .filter(|group| group.len()  == 2)
-                .map(|group| group
-                    .into_iter()
-                    .inspect(|entry| println!(" {:?} ", entry))
-                    .map(|entry| entry.value.parse::<i64>().unwrap() )
-                    .reduce(|a, b| a * b)
-                    .unwrap()
-                    )
-                .inspect(|lorem| println!("{:?"))
-                .reduce(|a,b| a * b)
-                .unwrap_or(0)   
-                )
-        .reduce(|a,b| a+ b)
+    let gear_part_ratio_product_sum = 
+    gear_parts
+        .values()
+        .into_iter()
+        .inspect(|lorem| println!("{:?}", lorem))
+        .filter(|parts| parts.len() == 2)
+        .map(|parts| parts.get(0).unwrap() * parts.get(1).unwrap())
+        .reduce(|a, b| a + b)
         .unwrap();
-*/
-    let mut gear_parts:HashMap<String,Vec<Entry>> = HashMap::new();
-   let part_number_sum = schematics.iter()
-       .flat_map(|row| row.iter())
-       .map(|rc| rc.borrow())
-       .filter(|entry| entry.is_part )
-       .unique_by(|entry| entry.id)
-      // .inspect(|entry| println!("{:?}", entry) )
-       .group_by(|entry| entry.gear_id.to_string())
-       .into_iter()
-       .map(|(_,group)| group.collect::<Vec<_>>())
-       .inspect(|entry| println!("{:?}", entry) )
-       .filter(|group| group.len() == 2)
-       .map(|group| 
-            group.into_iter()
-                .map(|entry| entry.value.parse::<i64>().unwrap())
-                .reduce(|a,b| a*b)
-                .unwrap()
-        )
-       .reduce(|a,b| a+b)
-       .unwrap();
-    println!("\n\nSum of all part numbers is: {:?}", part_number_sum);
+    print!("The answer is: {}", gear_part_ratio_product_sum);
 
-    
     Ok(())
 }
-
-fn neighbor_checker(grid:&Vec<Vec<String>>, i:usize,  j:usize)->Option<String>{
-    if i >= grid.len() || j >= grid.len(){
-        return None;
-    }
-    if let (Some(i_index), Some(j_index)) = (i.checked_sub(1), j.checked_sub(1)){
-        if check_cell(grid, i_index, j_index){
-            return Some(format!("i{}j{}",i_index,j_index));
-        }
-    }
-    if let (Some(i_index), Some(j_index)) = (i.checked_sub(1), Some(j)){
-        if check_cell(grid, i_index, j_index){
-            return Some(format!("i{}j{}",i_index,j_index));
-        }
-    }
-
-    if let (Some(i_index), Some(j_index)) = (i.checked_sub(1), j.checked_add(1)){
-        if check_cell(grid, i_index, j_index){
-            return Some(format!("i{}j{}",i_index,j_index));
-        }
-    }
-
-
-    if let (Some(i_index), Some(j_index)) = (Some(i), j.checked_sub(1)){
-        if check_cell(grid, i_index, j_index){
-            return Some(format!("i{}j{}",i_index,j_index));
-        }
-    }
-
-    if let (Some(i_index), Some(j_index)) = (Some(i), j.checked_add(1)){
-        if check_cell(grid, i_index, j_index){
-            return Some(format!("i{}j{}",i_index,j_index));
-        }
-    }
-
-    if let (Some(i_index), Some(j_index)) = (i.checked_add(1), j.checked_sub(1)){
-        if check_cell(grid, i_index, j_index){
-            return Some(format!("i{}j{}",i_index,j_index));
-        }
-    }
-
-    if let (Some(i_index), Some(j_index)) = (i.checked_add(1), Some(j)){
-        if check_cell(grid, i_index, j_index){
-            return Some(format!("i{}j{}",i_index,j_index));
-        }
-    }
-
-    if let (Some(i_index), Some(j_index)) = (i.checked_add(1), j.checked_add(1)){
-        if check_cell(grid, i_index, j_index){
-         return Some(format!("i{}j{}",i_index,j_index));
-        }
+fn check(entries:&Vec<char>, index:i64)->Option<usize>{
+    let index = index as usize;
+//    print!(" {} ", entries.get(index).unwrap_or(&'.'));
+    if entries.get(index).unwrap_or(&'.') == &'*'{
+        return Some(index)
     }
     None
 }
 
-fn check_cell(grid:&[Vec<String>], i:usize, j:usize)->bool{
-    if let Some(row) = grid.get(i){
-        if let Some(entry) = row.get(j){
-            if let Some(char) = entry.chars().next(){
-                if is_symbol(char){
-                    return true;
-                }
+fn check_neighbors(entries:&Vec<char>, cell:i64, line_length:i64)->Option<usize>{
+        for index in vec![cell-1, cell-line_length, cell-line_length+1, cell-1, cell+line_length-1,
+                          cell+line_length, cell+line_length+1, cell+1]{
+            if !check(&entries, index).is_some(){
+                continue;
             }
+            return Some(index as usize);
         }
-    }
-    false
-}
-fn is_symbol(char:char)->bool{
-    char.eq(&'*')
+    None
 }
