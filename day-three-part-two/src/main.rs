@@ -1,46 +1,50 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, BufRead};
+use std::ops::Add;
 use std::usize;
 
 fn main() -> std::io::Result<()> {
     let file = File::open("input.txt")?;
     let reader = BufReader::new(file);
     let null = &'.';
-    let mut line_length:i64 = 0;
-    let mut gear_parts:HashMap<usize, Vec<i64>> = HashMap::new();
-    let entries:Vec<char> = reader.lines()
-        .map(|line| line.unwrap())
-        .inspect(|line| line_length = line.len().try_into().unwrap())
-        .flat_map(|line| line.chars().collect::<Vec<char>>())
+    let mut gear_parts:HashMap<usize, Vec<(usize, usize)>> = HashMap::new();
+    let entries:Vec<Vec<char>> = reader.lines()
+        .map(|line| Vec::from_iter(line.unwrap().chars()))
         .collect();
-    let mut i:i64 = 0;
-    while i <= entries.len().try_into().unwrap_or(0){ 
-        if !entries.get(usize::try_from(i).unwrap()).unwrap_or(null).is_numeric(){
-            i = i + 1;
-            continue;
-        }
-        let mut j:i64 = 0;
-        let mut gear_indices:HashSet<usize> = HashSet::new();
-        if let Some(gear_index) = check_neighbors(&entries, i, line_length){
-            gear_indices.insert(gear_index);
-        }
-        while entries.get(usize::try_from(i+j).unwrap()).unwrap_or(null).is_numeric()
-           &&  ((i+j) as f64 / line_length as f64).fract() != 0.0{
-            if let Some(gear_index) = check_neighbors(&entries, i+j, line_length){
+
+    for (i,row) in entries.iter().enumerate(){
+        let mut shift_amount:i64 = 0;
+        for (j, entry) in row.iter().enumerate(){
+            if shift_amount != 0{
+                shift_amount = shift_amount - 1;
+                continue;
+            }
+            if !entry.is_numeric(){
+                continue;
+            }
+            let mut gear_indices:HashSet<(usize, usize)> = HashSet::new();
+            if let Some(gear_index) = check_neighbors(&entries, i, j){
                 gear_indices.insert(gear_index);
             }
-            println!("{}", (i+j)%line_length != 0);
-            j = j + 1;
+
+            while j.add(shift_amount as usize) < row.len() && row.get(j.add(shift_amount as usize)).unwrap().is_numeric(){
+                shift_amount = shift_amount + 1;
+                if let Some(gear_index) = check_neighbors(&entries, i, j){
+                    gear_indices.insert(gear_index);
+                }
+
+            }
+            let parsed_num = row[j..(j.add(shift_amount as usize)) as usize].iter().collect::<String>().parse::<i64>().unwrap();
+            for gear_index in gear_indices{
+
+            }
+            println!("{}", parsed_num);
         }
-        let parsed_num = &entries[i as usize..(i+j) as usize].iter().collect::<String>();//.parse::<i64>().unwrap();
-        println!("{}", parsed_num);
-//        println!("\n{}", parsed_num);
-       // for gear_index in gear_indices.iter(){
-       //     gear_parts.entry(*gear_index).or_insert_with(Vec::new).push(*parsed_num);
-        //}
-        i = i + 1 + j;
     }
+
+
+    /*
     let gear_part_ratio_product_sum = 
     gear_parts
         .values()
@@ -51,25 +55,48 @@ fn main() -> std::io::Result<()> {
         .reduce(|a, b| a + b)
         .unwrap();
     print!("The answer is: {}", gear_part_ratio_product_sum);
-
+*/
     Ok(())
 }
-fn check(entries:&Vec<char>, index:i64)->Option<usize>{
-    let index = index as usize;
-//    print!(" {} ", entries.get(index).unwrap_or(&'.'));
-    if entries.get(index).unwrap_or(&'.') == &'*'{
-        return Some(index)
+
+fn check_neighbor(entries:&Vec<Vec<char>>, i:i64, j:i64)->Option<(usize,usize)>{
+    if let Some(row) = entries.get(i as usize){
+        if let Some(char) = row.get(j as usize){
+            if char == &'*'{
+                return Some((i as usize,j as usize));
+            }
+        }
     }
     None
 }
 
-fn check_neighbors(entries:&Vec<char>, cell:i64, line_length:i64)->Option<usize>{
-        for index in vec![cell-1, cell-line_length, cell-line_length+1, cell-1, cell+line_length-1,
-                          cell+line_length, cell+line_length+1, cell+1]{
-            if !check(&entries, index).is_some(){
-                continue;
-            }
-            return Some(index as usize);
-        }
+fn check_neighbors(entries:&Vec<Vec<char>>, i:usize, j:usize) -> Option<(usize,usize)>{
+    let i = i as i64;
+    let j = j as i64;
+
+    if let Some(upper_left) = check_neighbor(entries, i - 1, j - 1){
+        return Some(upper_left);
+    }
+    if let Some(upper) = check_neighbor(entries, i-1, j){
+        return Some(upper);
+    }
+    if let Some(upper_left) = check_neighbor(entries, i-1, j+1){
+        return Some(upper_left);
+    }
+    if let Some(left) = check_neighbor(entries, i, j-1){
+        return Some(left);
+    }
+    if let Some(right) = check_neighbor(entries, i, j+1){
+        return Some(right);
+    }
+    if let Some(down_left) = check_neighbor(entries, i+1, j-1){
+        return Some(down_left);
+    }
+    if let Some(down) = check_neighbor(entries,i+1, j){
+        return Some(down);
+    }
+    if let Some(down_right) = check_neighbor(entries, i+1, j+1){
+        return Some(down_right);
+    }
     None
 }
