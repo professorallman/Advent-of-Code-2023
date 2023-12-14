@@ -7,7 +7,6 @@ use std::usize;
 fn main() -> std::io::Result<()> {
     let file = File::open("input.txt")?;
     let reader = BufReader::new(file);
-    let null = &'.';
     let mut gear_parts:HashMap<(usize,usize), Vec<i64>> = HashMap::new();
     let entries:Vec<Vec<char>> = reader.lines()
         .map(|line| Vec::from_iter(line.unwrap().chars()))
