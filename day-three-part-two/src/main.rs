@@ -8,7 +8,7 @@ fn main() -> std::io::Result<()> {
     let file = File::open("input.txt")?;
     let reader = BufReader::new(file);
     let null = &'.';
-    let mut gear_parts:HashMap<usize, Vec<(usize, usize)>> = HashMap::new();
+    let mut gear_parts:HashMap<(usize,usize), Vec<i64>> = HashMap::new();
     let entries:Vec<Vec<char>> = reader.lines()
         .map(|line| Vec::from_iter(line.unwrap().chars()))
         .collect();
@@ -29,33 +29,30 @@ fn main() -> std::io::Result<()> {
             }
 
             while j.add(shift_amount as usize) < row.len() && row.get(j.add(shift_amount as usize)).unwrap().is_numeric(){
-                shift_amount = shift_amount + 1;
-                if let Some(gear_index) = check_neighbors(&entries, i, j){
+                if let Some(gear_index) = check_neighbors(&entries, i, j.add(shift_amount as usize)){
                     gear_indices.insert(gear_index);
                 }
 
+                shift_amount = shift_amount + 1;
             }
             let parsed_num = row[j..(j.add(shift_amount as usize)) as usize].iter().collect::<String>().parse::<i64>().unwrap();
-            for gear_index in gear_indices{
 
+            for (gear_i, gear_j) in gear_indices.iter(){
+                gear_parts.entry((*gear_i, *gear_j)).or_insert_with(Vec::new).push(parsed_num);
             }
-            println!("{}", parsed_num);
         }
     }
 
-
-    /*
     let gear_part_ratio_product_sum = 
     gear_parts
         .values()
         .into_iter()
-        .inspect(|lorem| println!("{:?}", lorem))
         .filter(|parts| parts.len() == 2)
         .map(|parts| parts.get(0).unwrap() * parts.get(1).unwrap())
         .reduce(|a, b| a + b)
         .unwrap();
-    print!("The answer is: {}", gear_part_ratio_product_sum);
-*/
+    println!("The answer is: {}", gear_part_ratio_product_sum);
+
     Ok(())
 }
 
@@ -80,8 +77,8 @@ fn check_neighbors(entries:&Vec<Vec<char>>, i:usize, j:usize) -> Option<(usize,u
     if let Some(upper) = check_neighbor(entries, i-1, j){
         return Some(upper);
     }
-    if let Some(upper_left) = check_neighbor(entries, i-1, j+1){
-        return Some(upper_left);
+    if let Some(upper_right) = check_neighbor(entries, i-1, j+1){
+        return Some(upper_right);
     }
     if let Some(left) = check_neighbor(entries, i, j-1){
         return Some(left);
